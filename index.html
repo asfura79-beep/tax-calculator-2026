@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Налоговый калькулятор 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["IBM Plex Sans", "system-ui", "Segoe UI", "Arial", "sans-serif"] },
+            boxShadow: {
+              soft: "0 18px 45px rgba(15, 23, 42, 0.08)",
+              lift: "0 24px 70px rgba(15, 23, 42, 0.12)",
+            },
+          },
+        },
+      };
+    </script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+      html { scroll-behavior: smooth; }
+      body {
+        min-height: 100vh;
+        background:
+          linear-gradient(115deg, rgba(15, 23, 42, 0.03) 0%, transparent 34%),
+          linear-gradient(180deg, rgba(37, 99, 235, 0.08) 0%, rgba(255, 255, 255, 0) 36%),
+          linear-gradient(135deg, #eef2ff 0%, #ffffff 45%, #ecfdf5 100%);
+      }
+      *:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+      .money-input::-webkit-outer-spin-button,
+      .money-input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+      .tabular-nums { font-variant-numeric: tabular-nums; }
+      .subtle-grid {
+        background-image:
+          linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(15, 23, 42, 0.055) 1px, transparent 1px);
+        background-size: 32px 32px;
+        mask-image: linear-gradient(to bottom, black, transparent 70%);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="overflow-x-hidden text-slate-950 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useState } = React;
+
+      const SETTINGS_PASSWORD = "admin2026";
+      const SETTINGS_STORAGE_KEY = "taxCalculator2026.settings";
+
+      const DEFAULT_TAX_SETTINGS = {
+        usn: { incomeRate: 0.06, profitRate: 0.15, minTaxRate: 0.01, revenueLimit: 490_500_000, employeeLimit: 130, fixedAssetsLimit: 218_000_000 },
+        vatRates: { reduced5: 0.05, reduced7: 0.07, standard: 0.22 },
+        vatThresholds: { exemption: 20_000_000, reduced5: 272_500_000, reduced7: 490_500_000 },
+        osno: { profitTaxRate: 0.25 },
+        ip: { fixedContribution: 57_390, variableThreshold: 300_000, variableRate: 0.01, variableMax: 321_818 },
+        ausn: { incomeRate: 0.08, profitRate: 0.2, minTaxRate: 0.03, revenueLimit: 60_000_000, employeeLimit: 5, fixedAssetsLimit: 150_000_000, accidentContribution: 2_959 },
+      };
+
+      const VAT_ROWS = [
+        { key: "0", label: "0% / Осв.", rate: 0, short: "Осв." },
+        { key: "5", label: "5%", rate: 0.05, short: "5%" },
+        { key: "7", label: "7%", rate: 0.07, short: "7%" },
+        { key: "22", label: "22%", rate: 0.22, short: "22%" },
+      ];
+
+      function getVatRate(vatKey, settings = DEFAULT_TAX_SETTINGS) {
+        if (vatKey === "22") return settings.vatRates.standard;
+        if (vatKey === "7") return settings.vatRates.reduced7;
+        if (vatKey === "5") return settings.vatRates.reduced5;
+        return 0;
+      }
+
+      function getVatLabel(vatKey, settings = DEFAULT_TAX_SETTINGS) {
+        if (vatKey === "0") return "0% / Осв.";
+        return formatPercent(getVatRate(vatKey, settings));
+      }
+
+      const REGIMES = [
+        { key: "usn-income", label: "УСН «Доходы»", short: "УСН Д" },
+        { key: "usn-profit", label: "УСН «Д-Р»", short: "УСН Д-Р" },
+        { key: "osno", label: "ОСНО", short: "ОСНО" },
+        { key: "ausn-income", label: "АУСН «Доходы»", short: "АУСН Д" },
+        { key: "ausn-profit", label: "АУСН «Д-Р»", short: "АУСН Д-Р" },
+      ];
+
+      const DEFAULT_INPUT = {
+        entityType: "ip",
+        hasEmployees: false,
+        employeeCount: 0,
+        revenue: 21_000_000,
+        priorRevenue: 18_000_000,
+        expenses: 5_000_000,
+        vatPurchases: 5_000_000,
+        employeeContributions: 0,
+        fixedAssets: 0,
+      };
+
+      const MONTHS = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
+      const numberFormat = new Intl.NumberFormat("ru-RU");
+      const compactFormat = new Intl.NumberFormat("ru-RU", { notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 });
+
+      function formatMoney(value) {
+        if (!Number.isFinite(value)) return "0 ₽";
+        return `${numberFormat.format(Math.round(value))} ₽`;
+      }
+
+      function formatPercent(value) {
+        return `${((Number(value) || 0) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
+      }
+
+      function cloneSettings(settings) {
+        return JSON.parse(JSON.stringify(settings));
+      }
+
+      function mergeSettings(base, saved) {
+        if (!saved || typeof saved !== "object") return cloneSettings(base);
+        const savedVatRates = { ...(saved.vatRates || {}) };
+        if (saved.osno?.vatRate && !savedVatRates.standard) savedVatRates.standard = saved.osno.vatRate;
+        return {
+          usn: { ...base.usn, ...(saved.usn || {}) },
+          vatRates: { ...base.vatRates, ...savedVatRates },
+          vatThresholds: { ...base.vatThresholds, ...(saved.vatThresholds || {}) },
+          osno: { ...base.osno, ...(saved.osno || {}) },
+          ip: { ...base.ip, ...(saved.ip || {}) },
+          ausn: { ...base.ausn, ...(saved.ausn || {}) },
+        };
+      }
+
+      function loadTaxSettings() {
+        try {
+          return mergeSettings(DEFAULT_TAX_SETTINGS, JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)));
+        } catch {
+          return cloneSettings(DEFAULT_TAX_SETTINGS);
+        }
+      }
+
+      function saveTaxSettings(settings) {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+      }
+
+      function updateNestedSettings(settings, path, value) {
+        const [group, key] = path.split(".");
+        return { ...settings, [group]: { ...settings[group], [key]: value } };
+      }
+
+      function formatInput(value) {
+        const normalized = Number(value) || 0;
+        return normalized === 0 ? "0" : numberFormat.format(Math.round(normalized));
+      }
+
+      function parseMoney(value) {
+        const normalized = String(value).replace(/[^\d,-]/g, "").replace(",", ".");
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+      }
+
+      function formatProfit(value) {
+        if (!Number.isFinite(value)) return "0 ₽";
+        const abs = Math.abs(value);
+        if (abs >= 1_000_000) return `${(value / 1_000_000).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} млн ₽`;
+        return `${compactFormat.format(Math.round(value))} ₽`;
+      }
+
+      function formatMatrixProfit(value) {
+        if (!Number.isFinite(value)) return "0 ₽";
+        const abs = Math.abs(value);
+        if (abs >= 1_000_000) {
+          return `${(value / 1_000_000).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} млн ₽`;
+        }
+        return formatMoney(value);
+      }
+
+      function getVat(revenue, vatPurchases, rate) {
+        if (rate === 0) return { outputVat: 0, inputVat: 0, vatPayable: 0, revenueNet: revenue };
+        const outputVat = revenue - revenue / (1 + rate);
+        if (rate === 0.22) {
+          const inputVat = vatPurchases * (rate / (1 + rate));
+          return { outputVat, inputVat, vatPayable: outputVat - inputVat, revenueNet: revenue - outputVat };
+        }
+        return { outputVat, inputVat: 0, vatPayable: outputVat, revenueNet: revenue - outputVat };
+      }
+
+      function getProgressiveNdfl(base) {
+        if (base <= 0) return 0;
+        if (base <= 2_400_000) return base * 0.13;
+        if (base <= 5_000_000) return 312_000 + (base - 2_400_000) * 0.15;
+        if (base <= 20_000_000) return 702_000 + (base - 5_000_000) * 0.18;
+        if (base <= 50_000_000) return 3_402_000 + (base - 20_000_000) * 0.2;
+        return 9_402_000 + (base - 50_000_000) * 0.22;
+      }
+
+      function getIpOnePercent(base, settings = DEFAULT_TAX_SETTINGS) {
+        return Math.min(Math.max((base - settings.ip.variableThreshold) * settings.ip.variableRate, 0), settings.ip.variableMax);
+      }
+
+      function employeeState(input) {
+        return {
+          hasEmployees: input.entityType === "ooo" || input.hasEmployees,
+          employeeCount: input.entityType === "ooo" ? Math.max(1, input.employeeCount) : input.hasEmployees ? input.employeeCount : 0,
+          employeeContributions: input.entityType === "ip" && !input.hasEmployees ? 0 : input.employeeContributions,
+        };
+      }
+
+      function getIpContributions(input, regimeKey, revenueNet, taxableProfitBeforeVariable, settings = DEFAULT_TAX_SETTINGS) {
+        if (input.entityType !== "ip" || regimeKey.startsWith("ausn")) return { fixedIp: 0, variableIp: 0, totalIp: 0 };
+        const variableBase = regimeKey.endsWith("income") ? revenueNet : taxableProfitBeforeVariable;
+        const variableIp = getIpOnePercent(variableBase, settings);
+        return { fixedIp: settings.ip.fixedContribution, variableIp, totalIp: settings.ip.fixedContribution + variableIp };
+      }
+
+      function getApplicability(input, regimeKey, vatKey, settings = DEFAULT_TAX_SETTINGS) {
+        const staff = employeeState(input);
+        const reasons = [];
+
+        if (regimeKey.startsWith("usn")) {
+          if (input.revenue > settings.usn.revenueLimit) reasons.push(`доход выше лимита УСН ${formatProfit(settings.usn.revenueLimit)}`);
+          if (staff.employeeCount > settings.usn.employeeLimit) reasons.push(`численность выше лимита УСН ${settings.usn.employeeLimit} человек`);
+          if (input.fixedAssets > settings.usn.fixedAssetsLimit) reasons.push(`основные средства выше лимита УСН ${formatProfit(settings.usn.fixedAssetsLimit)}`);
+          if (vatKey === "0" && (input.revenue > settings.vatThresholds.exemption || input.priorRevenue > settings.vatThresholds.exemption)) {
+            reasons.push("освобождение от НДС недоступно при доходе 2025 или 2026 выше 20 млн ₽");
+          }
+          if (vatKey === "5" && input.revenue > settings.vatThresholds.reduced5) reasons.push(`ставка НДС 5% недоступна после ${formatProfit(settings.vatThresholds.reduced5)}`);
+          if (vatKey === "7" && input.revenue > settings.vatThresholds.reduced7) reasons.push(`ставка НДС 7% недоступна после ${formatProfit(settings.vatThresholds.reduced7)}`);
+        }
+
+        if (regimeKey === "osno" && vatKey !== "22") reasons.push("ОСНО рассчитывается только с НДС 22%");
+
+        if (regimeKey.startsWith("ausn")) {
+          if (vatKey !== "0") reasons.push("АУСН в этой модели без НДС");
+          if (input.revenue > settings.ausn.revenueLimit) reasons.push(`доход выше лимита АУСН ${formatProfit(settings.ausn.revenueLimit)}`);
+          if (staff.employeeCount > settings.ausn.employeeLimit) reasons.push(`численность выше лимита АУСН ${settings.ausn.employeeLimit} человек`);
+          if (input.fixedAssets > settings.ausn.fixedAssetsLimit) reasons.push(`основные средства выше лимита АУСН ${formatProfit(settings.ausn.fixedAssetsLimit)}`);
+        }
+
+        return { eligible: reasons.length === 0, reasons };
+      }
+
+      function calculateCell(rawInput, regimeKey, vatKey, settings = DEFAULT_TAX_SETTINGS) {
+        const vatRow = VAT_ROWS.find((item) => item.key === vatKey);
+        const input = { ...rawInput, ...employeeState(rawInput) };
+        const applicability = getApplicability(input, regimeKey, vatKey, settings);
+        const vatRate = getVatRate(vatKey, settings);
+        const vat = getVat(input.revenue, input.vatPurchases, vatRate);
+        const expensesForProfit = vatKey === "22" ? Math.max(input.expenses - vat.inputVat, 0) : input.expenses;
+        const taxableProfitBeforeVariable = vat.revenueNet - expensesForProfit - settings.ip.fixedContribution;
+        const ip = getIpContributions(input, regimeKey, vat.revenueNet, taxableProfitBeforeVariable, settings);
+        const accident = regimeKey.startsWith("ausn") && (input.entityType === "ooo" || input.hasEmployees) ? settings.ausn.accidentContribution : 0;
+        let taxBase = 0;
+        let accruedTax = 0;
+        let deduction = 0;
+        let minimumTax = 0;
+        let regimeTax = 0;
+        let taxableExpenses = expensesForProfit;
+        const notes = [];
+
+        if (regimeKey === "usn-income") {
+          taxBase = vat.revenueNet;
+          accruedTax = taxBase * settings.usn.incomeRate;
+          const contributionsForDeduction = input.employeeContributions + ip.totalIp;
+          const maxDeduction = input.hasEmployees || input.entityType === "ooo" ? accruedTax * 0.5 : accruedTax;
+          deduction = Math.min(accruedTax, contributionsForDeduction, maxDeduction);
+          regimeTax = Math.max(accruedTax - deduction, 0);
+        }
+
+        if (regimeKey === "usn-profit") {
+          taxableExpenses = expensesForProfit + ip.totalIp;
+          taxBase = vat.revenueNet - taxableExpenses;
+          const regularTax = Math.max(taxBase, 0) * settings.usn.profitRate;
+          minimumTax = vat.revenueNet * settings.usn.minTaxRate;
+          regimeTax = Math.max(regularTax, minimumTax);
+          accruedTax = regularTax;
+          notes.push(regimeTax === minimumTax ? `сработал минимальный налог ${formatPercent(settings.usn.minTaxRate)}` : `применена ставка ${formatPercent(settings.usn.profitRate)} к прибыли`);
+        }
+
+        if (regimeKey === "osno") {
+          taxableExpenses = expensesForProfit + ip.totalIp;
+          taxBase = vat.revenueNet - taxableExpenses;
+          regimeTax = input.entityType === "ooo" ? Math.max(taxBase, 0) * settings.osno.profitTaxRate : getProgressiveNdfl(taxBase);
+          accruedTax = regimeTax;
+        }
+
+        if (regimeKey === "ausn-income") {
+          taxBase = vat.revenueNet;
+          accruedTax = taxBase * settings.ausn.incomeRate;
+          regimeTax = accruedTax;
+          taxableExpenses = input.expenses;
+        }
+
+        if (regimeKey === "ausn-profit") {
+          taxableExpenses = input.expenses;
+          taxBase = vat.revenueNet - taxableExpenses;
+          const regularTax = Math.max(taxBase, 0) * settings.ausn.profitRate;
+          minimumTax = vat.revenueNet * settings.ausn.minTaxRate;
+          regimeTax = Math.max(regularTax, minimumTax);
+          accruedTax = regularTax;
+          notes.push(regimeTax === minimumTax ? `сработал минимальный налог ${formatPercent(settings.ausn.minTaxRate)}` : `применена ставка ${formatPercent(settings.ausn.profitRate)} к прибыли`);
+        }
+
+        const ownerAndAccidentContributions = ip.totalIp + accident;
+        const netProfit = vat.revenueNet - taxableExpenses - ownerAndAccidentContributions - regimeTax;
+
+        return {
+          id: `${regimeKey}-${vatKey}`,
+          regimeKey,
+          regimeLabel: REGIMES.find((item) => item.key === regimeKey).label,
+          vatKey,
+          vatLabel: getVatLabel(vatKey, settings),
+          eligible: applicability.eligible,
+          ineligibleReasons: applicability.reasons,
+          revenueGross: input.revenue,
+          revenueNet: vat.revenueNet,
+          expenses: input.expenses,
+          expensesForProfit,
+          taxableExpenses,
+          outputVat: vat.outputVat,
+          inputVat: vat.inputVat,
+          vatPayable: vat.vatPayable,
+          fixedIp: ip.fixedIp,
+          variableIp: ip.variableIp,
+          employeeContributions: regimeKey.startsWith("ausn") ? 0 : input.employeeContributions,
+          accident,
+          taxBase,
+          accruedTax,
+          deduction,
+          minimumTax,
+          regimeTax,
+          totalTaxes: regimeTax + vat.vatPayable,
+          netProfit,
+          notes,
+        };
+      }
+
+      function calculateMatrix(input, settings = DEFAULT_TAX_SETTINGS) {
+        return VAT_ROWS.flatMap((vat) => REGIMES.map((regime) => calculateCell(input, regime.key, vat.key, settings)));
+      }
+
+      function makeMonthlyRows(input) {
+        const split = (value) => Math.round((value || 0) / 12);
+        return MONTHS.map((month, index) => ({
+          month,
+          revenue: index === 11 ? input.revenue - split(input.revenue) * 11 : split(input.revenue),
+          expenses: index === 11 ? input.expenses - split(input.expenses) * 11 : split(input.expenses),
+          vatPurchases: index === 11 ? input.vatPurchases - split(input.vatPurchases) * 11 : split(input.vatPurchases),
+          employeeContributions: index === 11 ? input.employeeContributions - split(input.employeeContributions) * 11 : split(input.employeeContributions),
+        }));
+      }
+
+      function Icon({ name, className = "h-4 w-4" }) {
+        return <i data-lucide={name} className={className} aria-hidden="true"></i>;
+      }
+
+      function MoneyField({ label, value, onChange, disabled = false, hint }) {
+        return (
+          <label className="grid min-w-0 gap-1.5">
+            <span className="text-[13px] font-semibold leading-tight text-slate-700">{label}</span>
+            <input
+              className="money-input tabular-nums min-h-11 w-full min-w-0 rounded-lg border border-slate-200/80 bg-slate-50 px-3 text-base font-semibold text-slate-950 shadow-inner shadow-slate-200/40 transition hover:bg-white focus:border-blue-600 focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+              inputMode="numeric"
+              autoComplete="off"
+              disabled={disabled}
+              value={formatInput(value)}
+              onChange={(event) => onChange(parseMoney(event.target.value))}
+            />
+            {hint ? <span className="text-xs leading-5 text-slate-500">{hint}</span> : null}
+          </label>
+        );
+      }
+
+      function NumberField({ label, value, onChange, min = 0, disabled = false, hint }) {
+        return (
+          <label className="grid min-w-0 gap-1.5">
+            <span className="text-[13px] font-semibold leading-tight text-slate-700">{label}</span>
+            <input
+              className="tabular-nums min-h-11 w-full min-w-0 rounded-lg border border-slate-200/80 bg-slate-50 px-3 text-base font-semibold text-slate-950 shadow-inner shadow-slate-200/40 transition hover:bg-white focus:border-blue-600 focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+              type="number"
+              min={min}
+              disabled={disabled}
+              value={value}
+              onChange={(event) => onChange(Math.max(min, Number(event.target.value) || 0))}
+            />
+            {hint ? <span className="text-xs leading-5 text-slate-500">{hint}</span> : null}
+          </label>
+        );
+      }
+
+      function Segmented({ value, options, onChange, disabled = false, label }) {
+        return (
+          <fieldset className="grid gap-2">
+            <legend className="text-[13px] font-semibold text-slate-700">{label}</legend>
+            <div className="grid grid-cols-2 rounded-lg border border-slate-200 bg-slate-100 p-1">
+              {options.map((option) => (
+                <label key={option.value} className="cursor-pointer">
+                  <input
+                    className="peer sr-only"
+                    type="radio"
+                    disabled={disabled}
+                    checked={value === option.value}
+                    onChange={() => onChange(option.value)}
+                  />
+                  <span className="flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-semibold text-slate-600 transition peer-checked:bg-white peer-checked:text-slate-950 peer-checked:shadow-sm peer-disabled:cursor-not-allowed peer-disabled:opacity-60">
+                    {option.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        );
+      }
+
+      function InputPanel({ input, setInput, openMonthly, settings }) {
+        const staff = employeeState(input);
+
+        function patch(next) {
+          setInput((current) => {
+            const merged = { ...current, ...next };
+            if (merged.entityType === "ooo") {
+              merged.hasEmployees = true;
+              merged.employeeCount = Math.max(1, merged.employeeCount);
+            }
+            if (merged.entityType === "ip" && !merged.hasEmployees) {
+              merged.employeeCount = 0;
+              merged.employeeContributions = 0;
+            }
+            return merged;
+          });
+        }
+
+        return (
+          <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-lift ring-1 ring-slate-900/5 backdrop-blur lg:p-5 xl:sticky xl:top-5">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white shadow-lg shadow-slate-950/15">
+                  <Icon name="landmark" className="h-5 w-5" />
+                </div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Вводные</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Налоговый калькулятор 2026</h2>
+                <p className="mt-2 text-sm leading-5 text-slate-500">Сравнение режимов, НДС и лимитов в одной модели.</p>
+              </div>
+              <button
+                type="button"
+                onClick={openMonthly}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+              >
+                <Icon name="calendar-days" />
+                Помесячно
+              </button>
+            </div>
+
+            <div className="grid gap-4">
+              <Segmented
+                label="Форма бизнеса"
+                value={input.entityType}
+                options={[{ value: "ip", label: "ИП" }, { value: "ooo", label: "ООО" }]}
+                onChange={(entityType) => patch({ entityType })}
+              />
+
+              <Segmented
+                label="Есть работники?"
+                value={staff.hasEmployees ? "yes" : "no"}
+                disabled={input.entityType === "ooo"}
+                options={[{ value: "no", label: "Нет" }, { value: "yes", label: "Да" }]}
+                onChange={(value) => patch({ hasEmployees: value === "yes", employeeCount: value === "yes" ? 1 : 0 })}
+              />
+
+              <div className="grid min-w-0 gap-3">
+                <MoneyField label="Выручка 2026, ₽" value={input.revenue} onChange={(revenue) => patch({ revenue })} />
+                <MoneyField label="Расходы всего, ₽" value={input.expenses} onChange={(expenses) => patch({ expenses })} />
+                <MoneyField label="Покупки с НДС, ₽" value={input.vatPurchases} onChange={(vatPurchases) => patch({ vatPurchases })} />
+                <MoneyField label="Взносы за работников, ₽" value={staff.employeeContributions} disabled={!staff.hasEmployees} onChange={(employeeContributions) => patch({ employeeContributions })} hint="Без работников поле очищается." />
+                <NumberField label="Численность, чел." value={staff.employeeCount} disabled={!staff.hasEmployees} min={staff.hasEmployees ? 1 : 0} onChange={(employeeCount) => patch({ employeeCount })} />
+              </div>
+
+              <details className="rounded-xl border border-slate-200 bg-white p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-900">Дополнительная информация для лимитов</summary>
+                <div className="mt-3 grid min-w-0 gap-3">
+                  <MoneyField
+                    label="Доход 2025 для НДС, ₽"
+                    value={input.priorRevenue}
+                    onChange={(priorRevenue) => patch({ priorRevenue })}
+                    hint="Используется только для проверки освобождения от НДС до 20 млн ₽."
+                  />
+                  <MoneyField
+                    label="Основные средства, ₽"
+                    value={input.fixedAssets}
+                    onChange={(fixedAssets) => patch({ fixedAssets })}
+                    hint={`Проверяет лимиты: УСН до ${formatProfit(settings.usn.fixedAssetsLimit)}, АУСН до ${formatProfit(settings.ausn.fixedAssetsLimit)}. На сумму налога напрямую не влияет.`}
+                  />
+                </div>
+              </details>
+
+              {staff.hasEmployees && staff.employeeContributions === 0 ? (
+                <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <Icon name="triangle-alert" className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Работники указаны, но взносы за работников равны нулю. Проверьте ввод, чтобы сравнение не было завышено.</span>
+                </div>
+              ) : null}
+
+              {input.fixedAssets > settings.usn.fixedAssetsLimit ? (
+                <div className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+                  <Icon name="ban" className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Основные средства выше {formatProfit(settings.usn.fixedAssetsLimit)}, поэтому варианты УСН в матрице становятся недоступными.</span>
+                </div>
+              ) : null}
+
+              {input.fixedAssets > settings.ausn.fixedAssetsLimit ? (
+                <div className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+                  <Icon name="ban" className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Основные средства выше {formatProfit(settings.ausn.fixedAssetsLimit)}, поэтому варианты АУСН в матрице становятся недоступными.</span>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        );
+      }
+
+      function SummaryCards({ best, input, settings }) {
+        const eligibleCount = calculateMatrix(input, settings).filter((item) => item.eligible).length;
+        return (
+          <section className="grid gap-3 md:grid-cols-3">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-4 text-white shadow-lift">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-amber-300 to-blue-400"></div>
+              <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-emerald-200 ring-1 ring-white/15">
+                <Icon name="trophy" className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">Лучший режим</p>
+              <h2 className="mt-2 text-xl font-bold leading-tight">{best ? best.regimeLabel : "Нет доступных"}</h2>
+              <p className="mt-1 text-sm text-slate-300">{best ? `НДС: ${best.vatLabel}` : "Проверьте лимиты"}</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-100 bg-white/95 p-4 shadow-soft ring-1 ring-emerald-500/10">
+              <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <Icon name="wallet" className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Чистая прибыль</p>
+              <p className="mt-2 tabular-nums text-3xl font-bold tracking-tight text-emerald-700">{best ? formatProfit(best.netProfit) : "—"}</p>
+              <p className="mt-1 text-sm text-slate-500">{best ? formatMoney(best.netProfit) : "Нет расчета"}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-soft ring-1 ring-slate-900/5">
+              <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+                <Icon name="list-checks" className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Доступно вариантов</p>
+              <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{eligibleCount}</p>
+              <p className="mt-1 text-sm text-slate-500">из {VAT_ROWS.length * REGIMES.length} сочетаний</p>
+            </div>
+          </section>
+        );
+      }
+
+      function Matrix({ matrix, bestId, setSelectedId, settings }) {
+        return (
+          <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-lift ring-1 ring-slate-900/5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Матрица сравнения</p>
+                <h2 className="text-xl font-bold tracking-tight text-slate-950">Чистая прибыль по режимам и НДС</h2>
+              </div>
+              <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 sm:inline-flex">
+                <Icon name="table-2" className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="overflow-x-auto rounded-2xl bg-slate-50/80 p-2 ring-1 ring-slate-200/80">
+              <table className="w-full min-w-[980px] table-fixed border-separate border-spacing-2">
+                <thead>
+                  <tr>
+                    <th className="w-24 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">НДС</th>
+                    {REGIMES.map((regime) => (
+                      <th key={regime.key} className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="block leading-tight">{regime.label}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {VAT_ROWS.map((vat) => (
+                    <tr key={vat.key}>
+                      <th className="h-24 rounded-xl bg-white px-3 py-4 text-left text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-200/80">{getVatLabel(vat.key, settings)}</th>
+                      {REGIMES.map((regime) => {
+                        const item = matrix.find((cell) => cell.regimeKey === regime.key && cell.vatKey === vat.key);
+                        const isBest = item.id === bestId;
+                        return (
+                          <td key={item.id} className="align-top">
+                            <button
+                              type="button"
+                              onClick={() => item.eligible && setSelectedId(item.id)}
+                              disabled={!item.eligible}
+                              title={item.eligible ? "Показать детализацию" : item.ineligibleReasons.join("; ")}
+                              className={`relative grid h-24 w-full content-center rounded-xl border p-3 text-left transition ${
+                                item.eligible
+                                  ? "cursor-pointer border-slate-200 bg-white text-slate-950 shadow-sm hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+                                  : "cursor-not-allowed border-slate-200 bg-slate-100/70 text-slate-300"
+                              } ${isBest ? "border-emerald-500 bg-gradient-to-br from-emerald-50 to-white ring-2 ring-emerald-200" : ""}`}
+                            >
+                              {isBest ? <span className="absolute -top-4 left-3 rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg shadow-emerald-500/25">Оптимально</span> : null}
+                              {item.eligible ? (
+                                <>
+                                  <span className="tabular-nums break-words text-lg font-bold leading-tight text-slate-950">{formatMatrixProfit(item.netProfit)}</span>
+                                  <span className="mt-1 tabular-nums text-xs font-semibold leading-tight text-slate-500">налоги: {formatProfit(item.totalTaxes)}</span>
+                                </>
+                              ) : (
+                                <span className="text-center text-2xl font-bold leading-none">—</span>
+                              )}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      }
+
+      function ProfitChart({ results, bestId, setSelectedId }) {
+        const sorted = [...results].filter((item) => item.eligible).sort((a, b) => b.netProfit - a.netProfit);
+        const max = Math.max(...sorted.map((item) => Math.max(item.netProfit, 0)), 1);
+
+        return (
+          <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-soft ring-1 ring-slate-900/5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <Icon name="bar-chart-3" className="h-5 w-5" />
+                </span>
+                <h2 className="text-xl font-bold tracking-tight text-slate-950">График прибыли</h2>
+              </div>
+              <span className="hidden rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 sm:inline-flex">лучший вариант выделен</span>
+            </div>
+            <div className="overflow-x-auto rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-200/80">
+              <div className="flex min-w-[860px] items-end gap-3">
+              {sorted.map((item) => {
+                const height = `${Math.max((Math.max(item.netProfit, 0) / max) * 100, 4)}%`;
+                const isBest = item.id === bestId;
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => setSelectedId(item.id)}
+                    title="Показать детализацию"
+                    className="grid h-[320px] min-w-[112px] flex-1 grid-rows-[auto_1fr_auto] gap-3 rounded-xl p-2 text-center transition hover:bg-white hover:shadow-sm"
+                  >
+                    <span className="tabular-nums text-sm font-bold text-slate-950">{formatMatrixProfit(item.netProfit)}</span>
+                    <div className="flex items-end justify-center rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200/80">
+                      <div
+                        className={`w-full rounded-t-xl transition-all ${isBest ? "bg-gradient-to-t from-amber-500 to-amber-300" : "bg-gradient-to-t from-emerald-600 to-teal-400"}`}
+                        style={{ height }}
+                      ></div>
+                    </div>
+                    <div className="grid gap-1">
+                      <span className="text-xs font-bold leading-tight text-slate-800">{item.regimeLabel}</span>
+                      <span className="text-xs font-semibold text-slate-500">НДС {item.vatLabel}</span>
+                    </div>
+                  </button>
+                );
+              })}
+              </div>
+            </div>
+          </section>
+        );
+      }
+
+      function Details({ item }) {
+        const rows = [
+          ["Выручка с НДС", item.revenueGross],
+          ["НДС начисленный", item.outputVat],
+          ["НДС к вычету", item.inputVat],
+          ["НДС к уплате", item.vatPayable],
+          ["Выручка без НДС", item.revenueNet],
+          ["Расходы для прибыли", item.expensesForProfit],
+          ["Налоговая база", item.taxBase],
+          ["Начисленный налог режима", item.accruedTax],
+          ["Вычет по взносам", item.deduction],
+          ["Минимальный налог", item.minimumTax],
+          ["Налог режима", item.regimeTax],
+          ["Взносы ИП фиксированные", item.fixedIp],
+          ["Взносы ИП 1% сверх 300 тыс.", item.variableIp],
+          ["Взносы работников", item.employeeContributions],
+          ["Травматизм АУСН", item.accident],
+          ["Чистая прибыль", item.netProfit],
+        ];
+
+        return (
+          <details className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-soft ring-1 ring-slate-900/5" open>
+            <summary className="cursor-pointer">
+              <div className="inline-flex flex-wrap items-center gap-2 align-middle">
+                <span className="text-xl font-bold tracking-tight text-slate-950">Детализация расчета</span>
+                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-bold text-white">{item.regimeLabel}</span>
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">НДС {item.vatLabel}</span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                Чистая прибыль: <span className="tabular-nums text-emerald-700">{formatMoney(item.netProfit)}</span>
+              </p>
+            </summary>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[560px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="py-2 pr-3">Показатель</th>
+                    <th className="py-2 pr-3">Сумма</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(([label, value]) => (
+                    <tr key={label} className="border-b border-slate-100">
+                      <td className="py-2 pr-3 text-slate-600">{label}</td>
+                      <td className="tabular-nums py-2 pr-3 font-semibold text-slate-950">{formatMoney(value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {item.notes.length ? <p className="mt-3 text-sm text-slate-500">{item.notes.join(". ")}.</p> : null}
+          </details>
+        );
+      }
+
+      function MonthlyModal({ open, onClose, rows, setRows, onApply, employeeLocked }) {
+        if (!open) return null;
+
+        function updateRow(index, field, value) {
+          setRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row));
+        }
+
+        const totals = rows.reduce(
+          (sum, row) => ({
+            revenue: sum.revenue + row.revenue,
+            expenses: sum.expenses + row.expenses,
+            vatPurchases: sum.vatPurchases + row.vatPurchases,
+            employeeContributions: sum.employeeContributions + row.employeeContributions,
+          }),
+          { revenue: 0, expenses: 0, vatPurchases: 0, employeeContributions: 0 },
+        );
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-3" role="dialog" aria-modal="true">
+            <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-lg bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Точный расчет</p>
+                  <h2 className="text-xl font-bold text-slate-950">Помесячные суммы</h2>
+                </div>
+                <button type="button" onClick={onClose} aria-label="Закрыть помесячный расчет" className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 text-slate-700 transition hover:bg-slate-50">
+                  <Icon name="x" />
+                </button>
+              </div>
+              <div className="max-h-[64vh] overflow-auto p-4">
+                <table className="w-full min-w-[900px] border-separate border-spacing-y-2">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="px-2 py-1">Месяц</th>
+                      <th className="px-2 py-1">Выручка</th>
+                      <th className="px-2 py-1">Расходы</th>
+                      <th className="px-2 py-1">Покупки с НДС</th>
+                      <th className="px-2 py-1">Взносы работников</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, index) => (
+                      <tr key={row.month} className="rounded-md bg-slate-50">
+                        <td className="rounded-l-md px-2 py-2 font-semibold text-slate-800">{row.month}</td>
+                        {["revenue", "expenses", "vatPurchases", "employeeContributions"].map((field) => (
+                          <td key={field} className="px-2 py-2 last:rounded-r-md">
+                            <input
+                              className="money-input min-h-10 w-full rounded-md border border-slate-200 bg-white px-3 font-semibold disabled:bg-slate-100 disabled:text-slate-500"
+                              inputMode="numeric"
+                              disabled={field === "employeeContributions" && employeeLocked}
+                              value={formatInput(row[field])}
+                              onChange={(event) => updateRow(index, field, parseMoney(event.target.value))}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-4">
+                  <span>Выручка: <b className="text-slate-950">{formatMoney(totals.revenue)}</b></span>
+                  <span>Расходы: <b className="text-slate-950">{formatMoney(totals.expenses)}</b></span>
+                  <span>С НДС: <b className="text-slate-950">{formatMoney(totals.vatPurchases)}</b></span>
+                  <span>Взносы: <b className="text-slate-950">{formatMoney(totals.employeeContributions)}</b></span>
+                </div>
+                <button type="button" onClick={() => onApply(totals)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700">
+                  <Icon name="check" />
+                  Применить
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function SettingsField({ label, value, onChange, type = "money", hint }) {
+        const displayedValue = type === "percent" ? ((Number(value) || 0) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 3 }) : formatInput(value);
+
+        return (
+          <label className="grid min-w-0 gap-1.5">
+            <span className="text-[13px] font-semibold leading-tight text-slate-700">{label}</span>
+            <div className="relative">
+              <input
+                className="money-input tabular-nums min-h-11 w-full min-w-0 rounded-lg border border-slate-200/80 bg-slate-50 px-3 pr-10 text-base font-semibold text-slate-950 shadow-inner shadow-slate-200/40 transition hover:bg-white focus:border-blue-600 focus:bg-white"
+                inputMode={type === "integer" ? "numeric" : "decimal"}
+                value={displayedValue}
+                onChange={(event) => {
+                  const parsed = parseMoney(event.target.value);
+                  onChange(type === "percent" ? parsed / 100 : type === "integer" ? Math.round(parsed) : parsed);
+                }}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">{type === "percent" ? "%" : type === "integer" ? "" : "₽"}</span>
+            </div>
+            {hint ? <span className="text-xs leading-5 text-slate-500">{hint}</span> : null}
+          </label>
+        );
+      }
+
+      function SettingsGroup({ title, icon, children }) {
+        return (
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                <Icon name={icon} className="h-5 w-5" />
+              </span>
+              <h3 className="text-base font-bold text-slate-950">{title}</h3>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">{children}</div>
+          </section>
+        );
+      }
+
+      function SettingsModal({ open, onClose, settings, setSettings }) {
+        const [unlocked, setUnlocked] = useState(false);
+        const [password, setPassword] = useState("");
+        const [error, setError] = useState("");
+        const [draft, setDraft] = useState(() => cloneSettings(settings));
+
+        useEffect(() => {
+          if (open) {
+            setDraft(cloneSettings(settings));
+            setPassword("");
+            setError("");
+          }
+        }, [open, settings]);
+
+        if (!open) return null;
+
+        function patch(path, value) {
+          setDraft((current) => updateNestedSettings(current, path, value));
+        }
+
+        function unlock(event) {
+          event.preventDefault();
+          if (password === SETTINGS_PASSWORD) {
+            setUnlocked(true);
+            setError("");
+          } else {
+            setError("Неверный пароль. Попробуйте еще раз.");
+          }
+        }
+
+        function save() {
+          setSettings(draft);
+          saveTaxSettings(draft);
+          onClose();
+        }
+
+        function resetDefaults() {
+          const defaults = cloneSettings(DEFAULT_TAX_SETTINGS);
+          setDraft(defaults);
+          setSettings(defaults);
+          saveTaxSettings(defaults);
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3" role="dialog" aria-modal="true">
+            <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-950 p-5 text-white">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Администрирование</p>
+                  <h2 className="mt-1 text-2xl font-bold">Настройки законодательства</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">Ставки, лимиты и ограничения хранятся в одном месте и применяются ко всем расчетам.</p>
+                </div>
+                <button type="button" onClick={onClose} aria-label="Закрыть настройки" className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-slate-200 transition hover:bg-white/10">
+                  <Icon name="x" />
+                </button>
+              </div>
+
+              {!unlocked ? (
+                <form onSubmit={unlock} className="grid gap-4 p-5">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                    Это защита от случайного изменения в рамках одного HTML-файла. Для настоящей защиты нужен серверный вход.
+                  </div>
+                  <label className="grid gap-1.5">
+                    <span className="text-sm font-semibold text-slate-700">Пароль</span>
+                    <input
+                      className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-base font-semibold text-slate-950 focus:border-blue-600 focus:bg-white"
+                      type="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                    />
+                  </label>
+                  {error ? <p className="text-sm font-semibold text-rose-700" role="alert">{error}</p> : null}
+                  <button type="submit" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800">
+                    <Icon name="lock-keyhole-open" />
+                    Открыть настройки
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <div className="max-h-[60vh] overflow-auto bg-slate-50 p-5">
+                    <div className="grid gap-4">
+                      <SettingsGroup title="УСН" icon="badge-percent">
+                        <SettingsField label="УСН Доходы" type="percent" value={draft.usn.incomeRate} onChange={(value) => patch("usn.incomeRate", value)} />
+                        <SettingsField label="УСН Доходы минус расходы" type="percent" value={draft.usn.profitRate} onChange={(value) => patch("usn.profitRate", value)} />
+                        <SettingsField label="Минимальный налог УСН" type="percent" value={draft.usn.minTaxRate} onChange={(value) => patch("usn.minTaxRate", value)} />
+                        <SettingsField label="Лимит дохода УСН" value={draft.usn.revenueLimit} onChange={(value) => patch("usn.revenueLimit", value)} />
+                        <SettingsField label="Лимит сотрудников УСН" type="integer" value={draft.usn.employeeLimit} onChange={(value) => patch("usn.employeeLimit", value)} />
+                        <SettingsField label="Лимит основных средств УСН" value={draft.usn.fixedAssetsLimit} onChange={(value) => patch("usn.fixedAssetsLimit", value)} />
+                      </SettingsGroup>
+
+                      <SettingsGroup title="НДС на УСН" icon="receipt-text">
+                        <SettingsField label="Ставка НДС 5%" type="percent" value={draft.vatRates.reduced5} onChange={(value) => patch("vatRates.reduced5", value)} />
+                        <SettingsField label="Ставка НДС 7%" type="percent" value={draft.vatRates.reduced7} onChange={(value) => patch("vatRates.reduced7", value)} />
+                        <SettingsField label="Стандартная ставка НДС" type="percent" value={draft.vatRates.standard} onChange={(value) => patch("vatRates.standard", value)} />
+                        <SettingsField label="Освобождение до" value={draft.vatThresholds.exemption} onChange={(value) => patch("vatThresholds.exemption", value)} />
+                        <SettingsField label="Ставка 5% доступна до" value={draft.vatThresholds.reduced5} onChange={(value) => patch("vatThresholds.reduced5", value)} />
+                        <SettingsField label="Ставка 7% доступна до" value={draft.vatThresholds.reduced7} onChange={(value) => patch("vatThresholds.reduced7", value)} />
+                      </SettingsGroup>
+
+                      <SettingsGroup title="ОСНО и ИП" icon="scale">
+                        <SettingsField label="Налог на прибыль ООО" type="percent" value={draft.osno.profitTaxRate} onChange={(value) => patch("osno.profitTaxRate", value)} />
+                        <SettingsField label="Фиксированные взносы ИП" value={draft.ip.fixedContribution} onChange={(value) => patch("ip.fixedContribution", value)} />
+                        <SettingsField label="Порог 1% ИП" value={draft.ip.variableThreshold} onChange={(value) => patch("ip.variableThreshold", value)} />
+                        <SettingsField label="Ставка доп. взноса ИП" type="percent" value={draft.ip.variableRate} onChange={(value) => patch("ip.variableRate", value)} />
+                        <SettingsField label="Максимум доп. взноса ИП" value={draft.ip.variableMax} onChange={(value) => patch("ip.variableMax", value)} />
+                      </SettingsGroup>
+
+                      <SettingsGroup title="АУСН" icon="sparkles">
+                        <SettingsField label="АУСН Доходы" type="percent" value={draft.ausn.incomeRate} onChange={(value) => patch("ausn.incomeRate", value)} />
+                        <SettingsField label="АУСН Доходы минус расходы" type="percent" value={draft.ausn.profitRate} onChange={(value) => patch("ausn.profitRate", value)} />
+                        <SettingsField label="Минимальный налог АУСН" type="percent" value={draft.ausn.minTaxRate} onChange={(value) => patch("ausn.minTaxRate", value)} />
+                        <SettingsField label="Лимит дохода АУСН" value={draft.ausn.revenueLimit} onChange={(value) => patch("ausn.revenueLimit", value)} />
+                        <SettingsField label="Лимит сотрудников АУСН" type="integer" value={draft.ausn.employeeLimit} onChange={(value) => patch("ausn.employeeLimit", value)} />
+                        <SettingsField label="Лимит основных средств АУСН" value={draft.ausn.fixedAssetsLimit} onChange={(value) => patch("ausn.fixedAssetsLimit", value)} />
+                        <SettingsField label="Взнос на травматизм АУСН" value={draft.ausn.accidentContribution} onChange={(value) => patch("ausn.accidentContribution", value)} />
+                      </SettingsGroup>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-5">
+                    <button type="button" onClick={resetDefaults} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                      <Icon name="rotate-ccw" />
+                      Сбросить
+                    </button>
+                    <div className="flex flex-wrap gap-3">
+                      <button type="button" onClick={onClose} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                        Отмена
+                      </button>
+                      <button type="button" onClick={save} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700">
+                        <Icon name="save" />
+                        Сохранить настройки
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      function App() {
+        const [input, setInput] = useState(DEFAULT_INPUT);
+        const [taxSettings, setTaxSettings] = useState(loadTaxSettings);
+        const [settingsOpen, setSettingsOpen] = useState(false);
+        const [monthlyOpen, setMonthlyOpen] = useState(false);
+        const [monthlyRows, setMonthlyRows] = useState(() => makeMonthlyRows(DEFAULT_INPUT));
+        const matrix = useMemo(() => calculateMatrix(input, taxSettings), [input, taxSettings]);
+        const eligible = matrix.filter((item) => item.eligible);
+        const best = eligible.length ? eligible.reduce((winner, item) => item.netProfit > winner.netProfit ? item : winner, eligible[0]) : null;
+        const [selectedId, setSelectedId] = useState(null);
+        const selected = matrix.find((item) => item.id === (selectedId || best?.id)) || best;
+        const staff = employeeState(input);
+
+        useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+
+        useEffect(() => {
+          if (best && !matrix.some((item) => item.id === selectedId && item.eligible)) setSelectedId(best.id);
+        }, [best?.id, selectedId, matrix]);
+
+        function openMonthly() {
+          setMonthlyRows(makeMonthlyRows(input));
+          setMonthlyOpen(true);
+        }
+
+        function applyMonthly(totals) {
+          setInput((current) => ({
+            ...current,
+            revenue: totals.revenue,
+            expenses: totals.expenses,
+            vatPurchases: totals.vatPurchases,
+            employeeContributions: staff.hasEmployees ? totals.employeeContributions : 0,
+          }));
+          setMonthlyOpen(false);
+        }
+
+        return (
+          <main className="relative min-h-screen">
+            <div className="subtle-grid pointer-events-none absolute inset-x-0 top-0 h-80"></div>
+            <div className="relative mx-auto max-w-[1480px] px-4 py-5 sm:px-6 lg:py-7">
+              <div className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
+                <header className="grid gap-4 rounded-3xl border border-white/70 bg-white/65 p-5 shadow-soft ring-1 ring-slate-900/5 backdrop-blur md:grid-cols-[1fr_auto] md:items-end xl:col-span-2">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-700">Расчет налоговой нагрузки</p>
+                    <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Выберите режим с максимальной чистой прибылью</h1>
+                    <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                      Введите годовые показатели бизнеса, а калькулятор одновременно сравнит УСН, ОСНО и АУСН с доступными ставками НДС.
+                    </p>
+                  </div>
+                  <div className="grid gap-3">
+                    <div className="grid gap-2 rounded-2xl bg-slate-950 p-4 text-white shadow-lg shadow-slate-950/15">
+                      <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Год модели</span>
+                      <span className="tabular-nums text-3xl font-bold">2026</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSettingsOpen(true)}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      <Icon name="settings" />
+                      Настройки
+                    </button>
+                  </div>
+                </header>
+                <InputPanel input={input} setInput={setInput} openMonthly={openMonthly} settings={taxSettings} />
+                <section className="grid gap-5">
+                  <SummaryCards best={best} input={input} settings={taxSettings} />
+                  <Matrix matrix={matrix} bestId={best?.id} setSelectedId={setSelectedId} settings={taxSettings} />
+                  <ProfitChart results={matrix} bestId={best?.id} setSelectedId={setSelectedId} />
+                  {selected ? <Details item={selected} /> : null}
+                  <section className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm ring-1 ring-slate-900/5">
+                    <div className="flex items-start gap-2">
+                      <Icon name="info" className="mt-0.5 h-4 w-4 text-blue-700" />
+                      <p className="text-sm leading-6 text-slate-600">
+                        Расчет информационный. Модель проверяет лимиты: доход, численность, основные средства,
+                        доступность НДС для УСН и ограничения АУСН. Отраслевые запреты, доли участия, региональная доступность и банковские условия требуют отдельной проверки.
+                      </p>
+                    </div>
+                  </section>
+                </section>
+              </div>
+            </div>
+            <MonthlyModal open={monthlyOpen} onClose={() => setMonthlyOpen(false)} rows={monthlyRows} setRows={setMonthlyRows} onApply={applyMonthly} employeeLocked={!staff.hasEmployees} />
+            <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={taxSettings} setSettings={setTaxSettings} />
+          </main>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>
