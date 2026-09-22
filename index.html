@@ -4,18 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Налоговый калькулятор 2026</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: { sans: ["IBM Plex Sans", "system-ui", "Segoe UI", "Arial", "sans-serif"] },
+            fontFamily: { sans: ["Segoe UI Variable", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans", "ui-sans-serif", "system-ui", "sans-serif"] },
             boxShadow: {
-              soft: "0 18px 45px rgba(15, 23, 42, 0.08)",
-              lift: "0 24px 70px rgba(15, 23, 42, 0.12)",
+              soft: "var(--shadow-soft)",
+              lift: "var(--shadow-float)",
+              panel: "var(--shadow-panel)",
             },
           },
         },
@@ -26,24 +24,120 @@
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
+      :root {
+        --color-background: oklch(98.5% 0.003 106);
+        --color-surface: oklch(100% 0 0);
+        --color-surface-muted: oklch(95.5% 0.008 250);
+        --color-text: oklch(23% 0.03 260);
+        --color-text-muted: oklch(53% 0.025 258);
+        --color-accent: oklch(42% 0.14 262);
+        --color-accent-deep: oklch(30% 0.11 264);
+        --color-success: oklch(58% 0.12 165);
+        --color-success-deep: oklch(47% 0.11 166);
+        --color-warning: oklch(55% 0.09 70);
+        --color-warning-soft: oklch(95% 0.03 80);
+        --color-danger: oklch(57.7% 0.245 27.325);
+        --color-border: oklch(90% 0.012 255);
+        --gradient-sapphire: linear-gradient(135deg, var(--color-accent-deep), var(--color-accent));
+        --gradient-emerald: linear-gradient(135deg, var(--color-success), var(--color-success-deep));
+        --shadow-soft: 0 2px 8px -4px oklch(30% 0.06 262 / 0.1), 0 18px 40px -20px oklch(30% 0.06 262 / 0.22);
+        --shadow-float: 0 30px 70px -30px oklch(30% 0.08 262 / 0.35);
+        --shadow-panel: 0 34px 90px -45px oklch(23% 0.07 262 / 0.48);
+      }
       html { scroll-behavior: smooth; }
       body {
         min-height: 100vh;
+        color: var(--color-text);
         background:
-          linear-gradient(115deg, rgba(15, 23, 42, 0.03) 0%, transparent 34%),
-          linear-gradient(180deg, rgba(37, 99, 235, 0.08) 0%, rgba(255, 255, 255, 0) 36%),
-          linear-gradient(135deg, #eef2ff 0%, #ffffff 45%, #ecfdf5 100%);
+          radial-gradient(circle at 12% -12%, oklch(42% 0.14 262 / 0.11), transparent 31rem),
+          radial-gradient(circle at 92% 4%, oklch(58% 0.12 165 / 0.10), transparent 28rem),
+          linear-gradient(180deg, oklch(98.5% 0.003 106) 0%, oklch(96.5% 0.006 250) 100%);
+        font-feature-settings: "tnum" 1, "cv05" 1;
       }
-      *:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+      *:focus-visible { outline: 3px solid color-mix(in oklab, var(--color-accent) 72%, white); outline-offset: 2px; }
       .money-input::-webkit-outer-spin-button,
       .money-input::-webkit-inner-spin-button { appearance: none; margin: 0; }
       .tabular-nums { font-variant-numeric: tabular-nums; }
-      .subtle-grid {
-        background-image:
-          linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(15, 23, 42, 0.055) 1px, transparent 1px);
-        background-size: 32px 32px;
-        mask-image: linear-gradient(to bottom, black, transparent 70%);
+      .fintio-shell { max-width: 1400px; }
+      .fintio-aura {
+        background:
+          linear-gradient(color-mix(in oklab, var(--color-border) 34%, transparent) 1px, transparent 1px),
+          linear-gradient(90deg, color-mix(in oklab, var(--color-border) 34%, transparent) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: linear-gradient(to bottom, black, transparent 68%);
+        opacity: 0.58;
+      }
+      .fintio-surface {
+        border: 1px solid color-mix(in oklab, var(--color-border) 76%, transparent);
+        background: color-mix(in oklab, var(--color-surface) 90%, transparent);
+        box-shadow: var(--shadow-soft);
+        backdrop-filter: blur(16px);
+      }
+      .fintio-panel {
+        border: 1px solid color-mix(in oklab, var(--color-border) 72%, transparent);
+        background: color-mix(in oklab, var(--color-surface) 94%, transparent);
+        box-shadow: var(--shadow-soft);
+        backdrop-filter: blur(18px);
+      }
+      .fintio-brandmark,
+      .fintio-primary {
+        background: var(--gradient-sapphire);
+      }
+      .fintio-eyebrow { color: var(--color-accent); }
+      .fintio-muted { color: var(--color-text-muted); }
+      .fintio-input {
+        border-color: color-mix(in oklab, var(--color-border) 84%, transparent) !important;
+        background: color-mix(in oklab, var(--color-surface-muted) 54%, white) !important;
+        box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.86);
+      }
+      .fintio-input:hover,
+      .fintio-input:focus {
+        border-color: color-mix(in oklab, var(--color-accent) 46%, var(--color-border)) !important;
+        background: white !important;
+      }
+      .fintio-segmented {
+        border-color: color-mix(in oklab, var(--color-border) 82%, transparent) !important;
+        background: color-mix(in oklab, var(--color-surface-muted) 72%, white) !important;
+      }
+      .fintio-segmented input:checked + span {
+        background: white;
+        color: var(--color-text);
+        box-shadow: 0 8px 22px -16px oklch(30% 0.08 262 / 0.42);
+      }
+      .fintio-cta {
+        background: var(--gradient-sapphire);
+        color: white;
+        box-shadow: 0 14px 34px -22px oklch(30% 0.11 264 / 0.65);
+      }
+      .fintio-cta:hover { transform: translateY(-1px); filter: saturate(1.04); }
+      .fintio-soft-button {
+        border-color: color-mix(in oklab, var(--color-border) 78%, transparent);
+        background: white;
+      }
+      .fintio-soft-button:hover {
+        border-color: color-mix(in oklab, var(--color-accent) 42%, var(--color-border));
+        background: color-mix(in oklab, var(--color-surface-muted) 42%, white);
+      }
+      .fintio-best-card {
+        background:
+          radial-gradient(circle at 92% 0%, oklch(58% 0.12 165 / 0.22), transparent 34%),
+          var(--gradient-sapphire);
+      }
+      .fintio-table-wrap {
+        background: color-mix(in oklab, var(--color-surface-muted) 64%, white);
+        border: 1px solid color-mix(in oklab, var(--color-border) 74%, transparent);
+      }
+      .fintio-matrix-cell {
+        min-height: 6rem;
+      }
+      .fintio-matrix-cell.is-best {
+        border-color: color-mix(in oklab, var(--color-success) 65%, var(--color-border)) !important;
+        background: linear-gradient(135deg, oklch(98% 0.018 165), white);
+        box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-success) 30%, transparent), var(--shadow-soft);
+      }
+      @media (max-width: 430px) {
+        .fintio-shell { max-width: calc(100vw - 24px); }
+        .fintio-matrix-cell { min-height: 5.75rem; }
       }
       @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
@@ -60,9 +154,6 @@
 
     <script type="text/babel">
       const { useEffect, useMemo, useState } = React;
-
-      const SETTINGS_PASSWORD = "admin2026";
-      const SETTINGS_STORAGE_KEY = "taxCalculator2026.settings";
 
       const DEFAULT_TAX_SETTINGS = {
         usn: { incomeRate: 0.06, profitRate: 0.15, minTaxRate: 0.01, revenueLimit: 490_500_000, employeeLimit: 130, fixedAssetsLimit: 218_000_000 },
@@ -123,41 +214,6 @@
 
       function formatPercent(value) {
         return `${((Number(value) || 0) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
-      }
-
-      function cloneSettings(settings) {
-        return JSON.parse(JSON.stringify(settings));
-      }
-
-      function mergeSettings(base, saved) {
-        if (!saved || typeof saved !== "object") return cloneSettings(base);
-        const savedVatRates = { ...(saved.vatRates || {}) };
-        if (saved.osno?.vatRate && !savedVatRates.standard) savedVatRates.standard = saved.osno.vatRate;
-        return {
-          usn: { ...base.usn, ...(saved.usn || {}) },
-          vatRates: { ...base.vatRates, ...savedVatRates },
-          vatThresholds: { ...base.vatThresholds, ...(saved.vatThresholds || {}) },
-          osno: { ...base.osno, ...(saved.osno || {}) },
-          ip: { ...base.ip, ...(saved.ip || {}) },
-          ausn: { ...base.ausn, ...(saved.ausn || {}) },
-        };
-      }
-
-      function loadTaxSettings() {
-        try {
-          return mergeSettings(DEFAULT_TAX_SETTINGS, JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)));
-        } catch {
-          return cloneSettings(DEFAULT_TAX_SETTINGS);
-        }
-      }
-
-      function saveTaxSettings(settings) {
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-      }
-
-      function updateNestedSettings(settings, path, value) {
-        const [group, key] = path.split(".");
-        return { ...settings, [group]: { ...settings[group], [key]: value } };
       }
 
       function formatInput(value) {
@@ -236,7 +292,9 @@
           if (vatKey === "0" && (input.revenue > settings.vatThresholds.exemption || input.priorRevenue > settings.vatThresholds.exemption)) {
             reasons.push("освобождение от НДС недоступно при доходе 2025 или 2026 выше 20 млн ₽");
           }
+          if (vatKey === "5" && input.revenue <= settings.vatThresholds.exemption) reasons.push(`ставка НДС 5% доступна при доходе выше ${formatProfit(settings.vatThresholds.exemption)}`);
           if (vatKey === "5" && input.revenue > settings.vatThresholds.reduced5) reasons.push(`ставка НДС 5% недоступна после ${formatProfit(settings.vatThresholds.reduced5)}`);
+          if (vatKey === "7" && input.revenue <= settings.vatThresholds.reduced5) reasons.push(`ставка НДС 7% доступна при доходе выше ${formatProfit(settings.vatThresholds.reduced5)}`);
           if (vatKey === "7" && input.revenue > settings.vatThresholds.reduced7) reasons.push(`ставка НДС 7% недоступна после ${formatProfit(settings.vatThresholds.reduced7)}`);
         }
 
@@ -371,7 +429,7 @@
           <label className="grid min-w-0 gap-1.5">
             <span className="text-[13px] font-semibold leading-tight text-slate-700">{label}</span>
             <input
-              className="money-input tabular-nums min-h-11 w-full min-w-0 rounded-lg border border-slate-200/80 bg-slate-50 px-3 text-base font-semibold text-slate-950 shadow-inner shadow-slate-200/40 transition hover:bg-white focus:border-blue-600 focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+              className="fintio-input money-input tabular-nums min-h-11 w-full min-w-0 rounded-lg border px-3 text-base font-semibold text-slate-950 transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               inputMode="numeric"
               autoComplete="off"
               disabled={disabled}
@@ -388,7 +446,7 @@
           <label className="grid min-w-0 gap-1.5">
             <span className="text-[13px] font-semibold leading-tight text-slate-700">{label}</span>
             <input
-              className="tabular-nums min-h-11 w-full min-w-0 rounded-lg border border-slate-200/80 bg-slate-50 px-3 text-base font-semibold text-slate-950 shadow-inner shadow-slate-200/40 transition hover:bg-white focus:border-blue-600 focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+              className="fintio-input tabular-nums min-h-11 w-full min-w-0 rounded-lg border px-3 text-base font-semibold text-slate-950 transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
               type="number"
               min={min}
               disabled={disabled}
@@ -404,7 +462,7 @@
         return (
           <fieldset className="grid gap-2">
             <legend className="text-[13px] font-semibold text-slate-700">{label}</legend>
-            <div className="grid grid-cols-2 rounded-lg border border-slate-200 bg-slate-100 p-1">
+            <div className="fintio-segmented grid grid-cols-2 rounded-lg border p-1">
               {options.map((option) => (
                 <label key={option.value} className="cursor-pointer">
                   <input
@@ -414,7 +472,7 @@
                     checked={value === option.value}
                     onChange={() => onChange(option.value)}
                   />
-                  <span className="flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-semibold text-slate-600 transition peer-checked:bg-white peer-checked:text-slate-950 peer-checked:shadow-sm peer-disabled:cursor-not-allowed peer-disabled:opacity-60">
+                  <span className="flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-semibold text-slate-600 transition peer-disabled:cursor-not-allowed peer-disabled:opacity-60">
                     {option.label}
                   </span>
                 </label>
@@ -443,20 +501,20 @@
         }
 
         return (
-          <section className="rounded-2xl border border-white/70 bg-white/90 p-4 shadow-lift ring-1 ring-slate-900/5 backdrop-blur lg:p-5 xl:sticky xl:top-5">
+          <section className="fintio-panel rounded-2xl p-4 lg:p-5 xl:sticky xl:top-5">
             <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white shadow-lg shadow-slate-950/15">
+                <div className="fintio-brandmark mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-soft">
                   <Icon name="landmark" className="h-5 w-5" />
                 </div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Вводные</p>
-                <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Налоговый калькулятор 2026</h2>
+                <p className="fintio-eyebrow text-xs font-bold uppercase tracking-[0.18em]">Вводные</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Параметры бизнеса</h2>
                 <p className="mt-2 text-sm leading-5 text-slate-500">Сравнение режимов, НДС и лимитов в одной модели.</p>
               </div>
               <button
                 type="button"
                 onClick={openMonthly}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                className="fintio-soft-button inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold text-slate-800 shadow-sm transition"
               >
                 <Icon name="calendar-days" />
                 Помесячно
@@ -487,7 +545,7 @@
                 <NumberField label="Численность, чел." value={staff.employeeCount} disabled={!staff.hasEmployees} min={staff.hasEmployees ? 1 : 0} onChange={(employeeCount) => patch({ employeeCount })} />
               </div>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-3">
+              <details className="rounded-xl border border-slate-200/80 bg-white/75 p-3">
                 <summary className="cursor-pointer text-sm font-semibold text-slate-900">Дополнительная информация для лимитов</summary>
                 <div className="mt-3 grid min-w-0 gap-3">
                   <MoneyField
@@ -506,21 +564,21 @@
               </details>
 
               {staff.hasEmployees && staff.employeeContributions === 0 ? (
-                <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="flex gap-2 rounded-xl border border-amber-200/80 bg-amber-50/80 p-3 text-sm text-amber-900">
                   <Icon name="triangle-alert" className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>Работники указаны, но взносы за работников равны нулю. Проверьте ввод, чтобы сравнение не было завышено.</span>
                 </div>
               ) : null}
 
               {input.fixedAssets > settings.usn.fixedAssetsLimit ? (
-                <div className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+                <div className="flex gap-2 rounded-xl border border-rose-200/80 bg-rose-50/80 p-3 text-sm text-rose-900">
                   <Icon name="ban" className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>Основные средства выше {formatProfit(settings.usn.fixedAssetsLimit)}, поэтому варианты УСН в матрице становятся недоступными.</span>
                 </div>
               ) : null}
 
               {input.fixedAssets > settings.ausn.fixedAssetsLimit ? (
-                <div className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+                <div className="flex gap-2 rounded-xl border border-rose-200/80 bg-rose-50/80 p-3 text-sm text-rose-900">
                   <Icon name="ban" className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>Основные средства выше {formatProfit(settings.ausn.fixedAssetsLimit)}, поэтому варианты АУСН в матрице становятся недоступными.</span>
                 </div>
@@ -533,26 +591,26 @@
       function SummaryCards({ best, input, settings }) {
         const eligibleCount = calculateMatrix(input, settings).filter((item) => item.eligible).length;
         return (
-          <section className="grid gap-3 md:grid-cols-3">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-4 text-white shadow-lift">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-amber-300 to-blue-400"></div>
+          <section className="grid min-w-0 gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="fintio-best-card relative min-w-0 overflow-hidden rounded-2xl border border-slate-800/20 p-4 text-white shadow-lift">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-300 via-white/80 to-sky-300"></div>
               <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-emerald-200 ring-1 ring-white/15">
                 <Icon name="trophy" className="h-5 w-5" />
               </div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">Лучший режим</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-200">Расчетный вариант</p>
               <h2 className="mt-2 text-xl font-bold leading-tight">{best ? best.regimeLabel : "Нет доступных"}</h2>
               <p className="mt-1 text-sm text-slate-300">{best ? `НДС: ${best.vatLabel}` : "Проверьте лимиты"}</p>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-white/95 p-4 shadow-soft ring-1 ring-emerald-500/10">
-              <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <div className="fintio-panel min-w-0 rounded-2xl p-4">
+              <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                 <Icon name="wallet" className="h-5 w-5" />
               </div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Чистая прибыль</p>
               <p className="mt-2 tabular-nums text-3xl font-bold tracking-tight text-emerald-700">{best ? formatProfit(best.netProfit) : "—"}</p>
               <p className="mt-1 text-sm text-slate-500">{best ? formatMoney(best.netProfit) : "Нет расчета"}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-soft ring-1 ring-slate-900/5">
-              <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+            <div className="fintio-panel min-w-0 rounded-2xl p-4">
+              <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100">
                 <Icon name="list-checks" className="h-5 w-5" />
               </div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Доступно вариантов</p>
@@ -565,17 +623,17 @@
 
       function Matrix({ matrix, bestId, setSelectedId, settings }) {
         return (
-          <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-lift ring-1 ring-slate-900/5">
+          <section className="fintio-panel rounded-2xl p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Матрица сравнения</p>
+                <p className="fintio-eyebrow text-xs font-bold uppercase tracking-[0.18em]">Матрица сравнения</p>
                 <h2 className="text-xl font-bold tracking-tight text-slate-950">Чистая прибыль по режимам и НДС</h2>
               </div>
-              <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 sm:inline-flex">
+              <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 ring-1 ring-slate-200/70 sm:inline-flex">
                 <Icon name="table-2" className="h-5 w-5" />
               </div>
             </div>
-            <div className="overflow-x-auto rounded-2xl bg-slate-50/80 p-2 ring-1 ring-slate-200/80">
+            <div className="fintio-table-wrap overflow-x-auto rounded-2xl p-2">
               <table className="w-full min-w-[980px] table-fixed border-separate border-spacing-2">
                 <thead>
                   <tr>
@@ -601,13 +659,13 @@
                               onClick={() => item.eligible && setSelectedId(item.id)}
                               disabled={!item.eligible}
                               title={item.eligible ? "Показать детализацию" : item.ineligibleReasons.join("; ")}
-                              className={`relative grid h-24 w-full content-center rounded-xl border p-3 text-left transition ${
+                              className={`fintio-matrix-cell relative grid h-24 w-full content-center rounded-xl border p-3 text-left transition ${
                                 item.eligible
-                                  ? "cursor-pointer border-slate-200 bg-white text-slate-950 shadow-sm hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+                                  ? "cursor-pointer border-slate-200 bg-white text-slate-950 shadow-sm hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-md"
                                   : "cursor-not-allowed border-slate-200 bg-slate-100/70 text-slate-300"
-                              } ${isBest ? "border-emerald-500 bg-gradient-to-br from-emerald-50 to-white ring-2 ring-emerald-200" : ""}`}
+                              } ${isBest ? "is-best" : ""}`}
                             >
-                              {isBest ? <span className="absolute -top-4 left-3 rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg shadow-emerald-500/25">Оптимально</span> : null}
+                              {isBest ? <span className="absolute -top-4 left-3 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg shadow-emerald-500/20">Оптимально</span> : null}
                               {item.eligible ? (
                                 <>
                                   <span className="tabular-nums break-words text-lg font-bold leading-tight text-slate-950">{formatMatrixProfit(item.netProfit)}</span>
@@ -634,17 +692,17 @@
         const max = Math.max(...sorted.map((item) => Math.max(item.netProfit, 0)), 1);
 
         return (
-          <section className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-soft ring-1 ring-slate-900/5">
+          <section className="fintio-panel rounded-2xl p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                   <Icon name="bar-chart-3" className="h-5 w-5" />
                 </span>
                 <h2 className="text-xl font-bold tracking-tight text-slate-950">График прибыли</h2>
               </div>
-              <span className="hidden rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 sm:inline-flex">лучший вариант выделен</span>
+              <span className="hidden rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-100 sm:inline-flex">лучший вариант выделен</span>
             </div>
-            <div className="overflow-x-auto rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-200/80">
+            <div className="fintio-table-wrap overflow-x-auto rounded-2xl p-4">
               <div className="flex min-w-[860px] items-end gap-3">
               {sorted.map((item) => {
                 const height = `${Math.max((Math.max(item.netProfit, 0) / max) * 100, 4)}%`;
@@ -660,7 +718,7 @@
                     <span className="tabular-nums text-sm font-bold text-slate-950">{formatMatrixProfit(item.netProfit)}</span>
                     <div className="flex items-end justify-center rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200/80">
                       <div
-                        className={`w-full rounded-t-xl transition-all ${isBest ? "bg-gradient-to-t from-amber-500 to-amber-300" : "bg-gradient-to-t from-emerald-600 to-teal-400"}`}
+                        className={`w-full rounded-t-xl transition-all ${isBest ? "bg-gradient-to-t from-amber-500 to-amber-300" : "bg-gradient-to-t from-emerald-700 to-emerald-400"}`}
                         style={{ height }}
                       ></div>
                     </div>
@@ -698,12 +756,12 @@
         ];
 
         return (
-          <details className="rounded-2xl border border-white/70 bg-white/95 p-4 shadow-soft ring-1 ring-slate-900/5" open>
+          <details className="fintio-panel rounded-2xl p-4" open>
             <summary className="cursor-pointer">
               <div className="inline-flex flex-wrap items-center gap-2 align-middle">
                 <span className="text-xl font-bold tracking-tight text-slate-950">Детализация расчета</span>
                 <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-bold text-white">{item.regimeLabel}</span>
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">НДС {item.vatLabel}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200/80">НДС {item.vatLabel}</span>
               </div>
               <p className="mt-2 text-sm font-semibold text-slate-500">
                 Чистая прибыль: <span className="tabular-nums text-emerald-700">{formatMoney(item.netProfit)}</span>
@@ -750,14 +808,14 @@
         );
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-3" role="dialog" aria-modal="true">
-            <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-lg bg-white shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm" role="dialog" aria-modal="true">
+            <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-panel">
               <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Точный расчет</p>
+                  <p className="fintio-eyebrow text-xs font-bold uppercase tracking-[0.18em]">Точный расчет</p>
                   <h2 className="text-xl font-bold text-slate-950">Помесячные суммы</h2>
                 </div>
-                <button type="button" onClick={onClose} aria-label="Закрыть помесячный расчет" className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 text-slate-700 transition hover:bg-slate-50">
+                <button type="button" onClick={onClose} aria-label="Закрыть помесячный расчет" className="fintio-soft-button inline-flex h-11 w-11 items-center justify-center rounded-lg border text-slate-700 transition">
                   <Icon name="x" />
                 </button>
               </div>
@@ -779,7 +837,7 @@
                         {["revenue", "expenses", "vatPurchases", "employeeContributions"].map((field) => (
                           <td key={field} className="px-2 py-2 last:rounded-r-md">
                             <input
-                              className="money-input min-h-10 w-full rounded-md border border-slate-200 bg-white px-3 font-semibold disabled:bg-slate-100 disabled:text-slate-500"
+                              className="fintio-input money-input min-h-10 w-full rounded-md border px-3 font-semibold disabled:bg-slate-100 disabled:text-slate-500"
                               inputMode="numeric"
                               disabled={field === "employeeContributions" && employeeLocked}
                               value={formatInput(row[field])}
@@ -799,7 +857,7 @@
                   <span>С НДС: <b className="text-slate-950">{formatMoney(totals.vatPurchases)}</b></span>
                   <span>Взносы: <b className="text-slate-950">{formatMoney(totals.employeeContributions)}</b></span>
                 </div>
-                <button type="button" onClick={() => onApply(totals)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700">
+                <button type="button" onClick={() => onApply(totals)} className="fintio-cta inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold transition">
                   <Icon name="check" />
                   Применить
                 </button>
@@ -809,188 +867,9 @@
         );
       }
 
-      function SettingsField({ label, value, onChange, type = "money", hint }) {
-        const displayedValue = type === "percent" ? ((Number(value) || 0) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 3 }) : formatInput(value);
-
-        return (
-          <label className="grid min-w-0 gap-1.5">
-            <span className="text-[13px] font-semibold leading-tight text-slate-700">{label}</span>
-            <div className="relative">
-              <input
-                className="money-input tabular-nums min-h-11 w-full min-w-0 rounded-lg border border-slate-200/80 bg-slate-50 px-3 pr-10 text-base font-semibold text-slate-950 shadow-inner shadow-slate-200/40 transition hover:bg-white focus:border-blue-600 focus:bg-white"
-                inputMode={type === "integer" ? "numeric" : "decimal"}
-                value={displayedValue}
-                onChange={(event) => {
-                  const parsed = parseMoney(event.target.value);
-                  onChange(type === "percent" ? parsed / 100 : type === "integer" ? Math.round(parsed) : parsed);
-                }}
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">{type === "percent" ? "%" : type === "integer" ? "" : "₽"}</span>
-            </div>
-            {hint ? <span className="text-xs leading-5 text-slate-500">{hint}</span> : null}
-          </label>
-        );
-      }
-
-      function SettingsGroup({ title, icon, children }) {
-        return (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                <Icon name={icon} className="h-5 w-5" />
-              </span>
-              <h3 className="text-base font-bold text-slate-950">{title}</h3>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">{children}</div>
-          </section>
-        );
-      }
-
-      function SettingsModal({ open, onClose, settings, setSettings }) {
-        const [unlocked, setUnlocked] = useState(false);
-        const [password, setPassword] = useState("");
-        const [error, setError] = useState("");
-        const [draft, setDraft] = useState(() => cloneSettings(settings));
-
-        useEffect(() => {
-          if (open) {
-            setDraft(cloneSettings(settings));
-            setPassword("");
-            setError("");
-          }
-        }, [open, settings]);
-
-        if (!open) return null;
-
-        function patch(path, value) {
-          setDraft((current) => updateNestedSettings(current, path, value));
-        }
-
-        function unlock(event) {
-          event.preventDefault();
-          if (password === SETTINGS_PASSWORD) {
-            setUnlocked(true);
-            setError("");
-          } else {
-            setError("Неверный пароль. Попробуйте еще раз.");
-          }
-        }
-
-        function save() {
-          setSettings(draft);
-          saveTaxSettings(draft);
-          onClose();
-        }
-
-        function resetDefaults() {
-          const defaults = cloneSettings(DEFAULT_TAX_SETTINGS);
-          setDraft(defaults);
-          setSettings(defaults);
-          saveTaxSettings(defaults);
-        }
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3" role="dialog" aria-modal="true">
-            <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-950 p-5 text-white">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Администрирование</p>
-                  <h2 className="mt-1 text-2xl font-bold">Настройки законодательства</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">Ставки, лимиты и ограничения хранятся в одном месте и применяются ко всем расчетам.</p>
-                </div>
-                <button type="button" onClick={onClose} aria-label="Закрыть настройки" className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-slate-200 transition hover:bg-white/10">
-                  <Icon name="x" />
-                </button>
-              </div>
-
-              {!unlocked ? (
-                <form onSubmit={unlock} className="grid gap-4 p-5">
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                    Это защита от случайного изменения в рамках одного HTML-файла. Для настоящей защиты нужен серверный вход.
-                  </div>
-                  <label className="grid gap-1.5">
-                    <span className="text-sm font-semibold text-slate-700">Пароль</span>
-                    <input
-                      className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-base font-semibold text-slate-950 focus:border-blue-600 focus:bg-white"
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                    />
-                  </label>
-                  {error ? <p className="text-sm font-semibold text-rose-700" role="alert">{error}</p> : null}
-                  <button type="submit" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800">
-                    <Icon name="lock-keyhole-open" />
-                    Открыть настройки
-                  </button>
-                </form>
-              ) : (
-                <>
-                  <div className="max-h-[60vh] overflow-auto bg-slate-50 p-5">
-                    <div className="grid gap-4">
-                      <SettingsGroup title="УСН" icon="badge-percent">
-                        <SettingsField label="УСН Доходы" type="percent" value={draft.usn.incomeRate} onChange={(value) => patch("usn.incomeRate", value)} />
-                        <SettingsField label="УСН Доходы минус расходы" type="percent" value={draft.usn.profitRate} onChange={(value) => patch("usn.profitRate", value)} />
-                        <SettingsField label="Минимальный налог УСН" type="percent" value={draft.usn.minTaxRate} onChange={(value) => patch("usn.minTaxRate", value)} />
-                        <SettingsField label="Лимит дохода УСН" value={draft.usn.revenueLimit} onChange={(value) => patch("usn.revenueLimit", value)} />
-                        <SettingsField label="Лимит сотрудников УСН" type="integer" value={draft.usn.employeeLimit} onChange={(value) => patch("usn.employeeLimit", value)} />
-                        <SettingsField label="Лимит основных средств УСН" value={draft.usn.fixedAssetsLimit} onChange={(value) => patch("usn.fixedAssetsLimit", value)} />
-                      </SettingsGroup>
-
-                      <SettingsGroup title="НДС на УСН" icon="receipt-text">
-                        <SettingsField label="Ставка НДС 5%" type="percent" value={draft.vatRates.reduced5} onChange={(value) => patch("vatRates.reduced5", value)} />
-                        <SettingsField label="Ставка НДС 7%" type="percent" value={draft.vatRates.reduced7} onChange={(value) => patch("vatRates.reduced7", value)} />
-                        <SettingsField label="Стандартная ставка НДС" type="percent" value={draft.vatRates.standard} onChange={(value) => patch("vatRates.standard", value)} />
-                        <SettingsField label="Освобождение до" value={draft.vatThresholds.exemption} onChange={(value) => patch("vatThresholds.exemption", value)} />
-                        <SettingsField label="Ставка 5% доступна до" value={draft.vatThresholds.reduced5} onChange={(value) => patch("vatThresholds.reduced5", value)} />
-                        <SettingsField label="Ставка 7% доступна до" value={draft.vatThresholds.reduced7} onChange={(value) => patch("vatThresholds.reduced7", value)} />
-                      </SettingsGroup>
-
-                      <SettingsGroup title="ОСНО и ИП" icon="scale">
-                        <SettingsField label="Налог на прибыль ООО" type="percent" value={draft.osno.profitTaxRate} onChange={(value) => patch("osno.profitTaxRate", value)} />
-                        <SettingsField label="Фиксированные взносы ИП" value={draft.ip.fixedContribution} onChange={(value) => patch("ip.fixedContribution", value)} />
-                        <SettingsField label="Порог 1% ИП" value={draft.ip.variableThreshold} onChange={(value) => patch("ip.variableThreshold", value)} />
-                        <SettingsField label="Ставка доп. взноса ИП" type="percent" value={draft.ip.variableRate} onChange={(value) => patch("ip.variableRate", value)} />
-                        <SettingsField label="Максимум доп. взноса ИП" value={draft.ip.variableMax} onChange={(value) => patch("ip.variableMax", value)} />
-                      </SettingsGroup>
-
-                      <SettingsGroup title="АУСН" icon="sparkles">
-                        <SettingsField label="АУСН Доходы" type="percent" value={draft.ausn.incomeRate} onChange={(value) => patch("ausn.incomeRate", value)} />
-                        <SettingsField label="АУСН Доходы минус расходы" type="percent" value={draft.ausn.profitRate} onChange={(value) => patch("ausn.profitRate", value)} />
-                        <SettingsField label="Минимальный налог АУСН" type="percent" value={draft.ausn.minTaxRate} onChange={(value) => patch("ausn.minTaxRate", value)} />
-                        <SettingsField label="Лимит дохода АУСН" value={draft.ausn.revenueLimit} onChange={(value) => patch("ausn.revenueLimit", value)} />
-                        <SettingsField label="Лимит сотрудников АУСН" type="integer" value={draft.ausn.employeeLimit} onChange={(value) => patch("ausn.employeeLimit", value)} />
-                        <SettingsField label="Лимит основных средств АУСН" value={draft.ausn.fixedAssetsLimit} onChange={(value) => patch("ausn.fixedAssetsLimit", value)} />
-                        <SettingsField label="Взнос на травматизм АУСН" value={draft.ausn.accidentContribution} onChange={(value) => patch("ausn.accidentContribution", value)} />
-                      </SettingsGroup>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-5">
-                    <button type="button" onClick={resetDefaults} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-                      <Icon name="rotate-ccw" />
-                      Сбросить
-                    </button>
-                    <div className="flex flex-wrap gap-3">
-                      <button type="button" onClick={onClose} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-                        Отмена
-                      </button>
-                      <button type="button" onClick={save} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700">
-                        <Icon name="save" />
-                        Сохранить настройки
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      }
-
       function App() {
         const [input, setInput] = useState(DEFAULT_INPUT);
-        const [taxSettings, setTaxSettings] = useState(loadTaxSettings);
-        const [settingsOpen, setSettingsOpen] = useState(false);
+        const taxSettings = DEFAULT_TAX_SETTINGS;
         const [monthlyOpen, setMonthlyOpen] = useState(false);
         const [monthlyRows, setMonthlyRows] = useState(() => makeMonthlyRows(DEFAULT_INPUT));
         const matrix = useMemo(() => calculateMatrix(input, taxSettings), [input, taxSettings]);
@@ -1024,41 +903,45 @@
 
         return (
           <main className="relative min-h-screen">
-            <div className="subtle-grid pointer-events-none absolute inset-x-0 top-0 h-80"></div>
-            <div className="relative mx-auto max-w-[1480px] px-4 py-5 sm:px-6 lg:py-7">
-              <div className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
-                <header className="grid gap-4 rounded-3xl border border-white/70 bg-white/65 p-5 shadow-soft ring-1 ring-slate-900/5 backdrop-blur md:grid-cols-[1fr_auto] md:items-end xl:col-span-2">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-700">Расчет налоговой нагрузки</p>
-                    <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Выберите режим с максимальной чистой прибылью</h1>
-                    <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                      Введите годовые показатели бизнеса, а калькулятор одновременно сравнит УСН, ОСНО и АУСН с доступными ставками НДС.
-                    </p>
+            <div className="fintio-aura pointer-events-none absolute inset-x-0 top-0 h-80"></div>
+            <div className="fintio-shell relative mx-auto px-4 py-4 sm:px-6 lg:py-6">
+              <header className="mb-4 flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/60 px-4 py-3 shadow-soft backdrop-blur md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="fintio-brandmark flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-soft">F</div>
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold tracking-tight text-slate-950">Fintio</p>
+                    <p className="truncate text-sm text-slate-500">Финансовые инструменты для бизнеса</p>
                   </div>
-                  <div className="grid gap-3">
-                    <div className="grid gap-2 rounded-2xl bg-slate-950 p-4 text-white shadow-lg shadow-slate-950/15">
-                      <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Год модели</span>
-                      <span className="tabular-nums text-3xl font-bold">2026</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSettingsOpen(true)}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
-                    >
-                      <Icon name="settings" />
-                      Настройки
-                    </button>
-                  </div>
-                </header>
+                </div>
+                <a href="https://fintio.ru/" className="inline-flex min-h-10 items-center text-sm font-semibold text-slate-700 transition hover:text-slate-950">
+                  ← На сайт Fintio
+                </a>
+              </header>
+
+              <section className="fintio-surface mb-5 grid gap-4 rounded-3xl p-5 md:grid-cols-[1fr_auto] md:items-end">
+                <div>
+                  <p className="fintio-eyebrow text-xs font-bold uppercase tracking-[0.22em]">Расчет налоговой нагрузки</p>
+                  <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Налоговый калькулятор 2026</h1>
+                  <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                    Сравните налоговые режимы и оцените налоговую нагрузку бизнеса.
+                  </p>
+                </div>
+                <div className="grid gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-white shadow-soft">
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Год модели</span>
+                  <span className="tabular-nums text-3xl font-bold">2026</span>
+                </div>
+              </section>
+
+              <div className="grid min-w-0 gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
                 <InputPanel input={input} setInput={setInput} openMonthly={openMonthly} settings={taxSettings} />
-                <section className="grid gap-5">
+                <section className="grid min-w-0 gap-5">
                   <SummaryCards best={best} input={input} settings={taxSettings} />
                   <Matrix matrix={matrix} bestId={best?.id} setSelectedId={setSelectedId} settings={taxSettings} />
                   <ProfitChart results={matrix} bestId={best?.id} setSelectedId={setSelectedId} />
                   {selected ? <Details item={selected} /> : null}
-                  <section className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm ring-1 ring-slate-900/5">
+                  <section className="fintio-panel rounded-2xl p-4">
                     <div className="flex items-start gap-2">
-                      <Icon name="info" className="mt-0.5 h-4 w-4 text-blue-700" />
+                      <Icon name="info" className="fintio-eyebrow mt-0.5 h-4 w-4" />
                       <p className="text-sm leading-6 text-slate-600">
                         Расчет информационный. Модель проверяет лимиты: доход, численность, основные средства,
                         доступность НДС для УСН и ограничения АУСН. Отраслевые запреты, доли участия, региональная доступность и банковские условия требуют отдельной проверки.
@@ -1067,9 +950,12 @@
                   </section>
                 </section>
               </div>
+              <footer className="mt-6 flex flex-col gap-2 border-t border-slate-200/80 py-5 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                <span>Fintio · Финансовые инструменты для бизнеса</span>
+                <a href="https://fintio.ru/" className="font-semibold text-slate-700 transition hover:text-slate-950">fintio.ru</a>
+              </footer>
             </div>
             <MonthlyModal open={monthlyOpen} onClose={() => setMonthlyOpen(false)} rows={monthlyRows} setRows={setMonthlyRows} onApply={applyMonthly} employeeLocked={!staff.hasEmployees} />
-            <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={taxSettings} setSettings={setTaxSettings} />
           </main>
         );
       }
